@@ -1,0 +1,18 @@
+/* ALL @import rules must be at the very top of the file */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Tailwind CSS directives must come after @import rules */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom CSS for body and root, without @apply for utility classes */
+body {
+  font-family: 'Inter', sans-serif;
+  /* Removed @apply classes from here. They are now applied directly in App.jsx */
+}
+
+#root {
+  /* Removed @apply classes from here. They are now applied directly in App.jsx */
+  height: 100%; /* Ensure #root takes full height if body is min-h-screen */
+}
