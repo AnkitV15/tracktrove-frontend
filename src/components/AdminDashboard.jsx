@@ -1,9 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import moment from 'moment';
 
-// Main component for the Admin Dashboard
-export default function AdminDashboard() {
+// Custom hook for debouncing a value
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
+// AdminDashboard Component - Wrapped in React.memo for performance
+const AdminDashboard = React.memo(({ transactions, fetchRecentTransactions, showMessage, loading }) => {
   const [transactionForm, setTransactionForm] = useState({
-    // Vendor ID is no longer hardcoded to allow for different vendors
     vendorId: '', 
     amount: 405.75,
     currency: 'USD',
@@ -24,97 +42,72 @@ export default function AdminDashboard() {
     transactionId: '',
   });
 
-  const [transactions, setTransactions] = useState([]);
-  const [message, setMessage] = useState('');
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [timelineStatus, setTimelineStatus] = useState(null); // State for live timeline status
+  const [timelineStatus, setTimelineStatus] = useState(null);
   const [injectorIdError, setInjectorIdError] = useState(false);
   const [disputeIdError, setDisputeIdError] = useState(false);
-  const [timelineProgress, setTimelineProgress] = useState(0); // State for timeline animation
+  const [timelineProgress, setTimelineProgress] = useState(0);
   const [animationInterval, setAnimationInterval] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-  // A regex to validate a UUID string
-  const isValidUUID = (uuid) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
-  };
-  
-  // A function to generate a random UUID for demonstration purposes
-  const generateRandomUUID = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  };
+  // Filter transactions based on search term and status filter
+  const filteredTransactions = useMemo(() => {
+    let filtered = transactions;
 
-  // Function to handle form changes for the transaction form
-  const handleTransactionFormChange = (e) => {
+    if (statusFilter !== 'ALL') {
+      filtered = filtered.filter(tx => (tx.currentStatus || 'UNKNOWN').toUpperCase() === statusFilter);
+    }
+
+    if (debouncedSearchTerm) {
+      const searchLower = debouncedSearchTerm.toLowerCase();
+      filtered = filtered.filter(tx =>
+        tx.id.toLowerCase().includes(searchLower) ||
+        tx.vendorId.toLowerCase().includes(searchLower)
+      );
+    }
+    return filtered;
+  }, [transactions, statusFilter, debouncedSearchTerm]);
+
+  const handleTransactionFormChange = useCallback((e) => {
     const { name, value } = e.target;
     setTransactionForm(prevState => ({
       ...prevState,
       [name]: value,
     }));
-  };
+  }, []);
   
-  // Function to handle form changes for the simulation form
-  const handleSimulationFormChange = (e) => {
+  const handleSimulationFormChange = useCallback((e) => {
     const { name, value } = e.target;
     setSimulationForm(prevState => ({
       ...prevState,
       [name]: value,
     }));
-  };
+  }, []);
 
-  // Function to display messages to the user
-  const showMessage = (msg, success) => {
-    setMessage(msg);
-    setIsSuccess(success);
-    // Automatically clear the message after 5 seconds
-    setTimeout(() => {
-      setMessage('');
-    }, 5000);
-  };
+  // A regex to validate a UUID string
+  const isValidUUID = useCallback((uuid) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  }, []);
   
-  // Function to fetch recent transactions from the API
-  const fetchRecentTransactions = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('http://localhost:8080/api/transactions', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+  // A function to generate a random UUID for demonstration purposes
+  const generateRandomUUID = useCallback(() => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }, []);
 
-      if (response.ok) {
-        const result = await response.json();
-        // Sort transactions in reverse chronological order (newest first)
-        const sortedTransactions = Array.isArray(result) ? result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : [];
-        setTransactions(sortedTransactions);
-        showMessage('Transactions loaded successfully!', true);
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch transactions.');
-      }
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-      showMessage(`Error fetching transactions: ${error.message}`, false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Function to fetch the live status of a single transaction for the timeline
-  const fetchTimelineStatus = async (transactionId) => {
+  const fetchTimelineStatus = useCallback(async (transactionId) => {
     try {
       const response = await fetch(`http://localhost:8080/api/transactions/${transactionId}/status`, {
         method: 'GET',
       });
       if (response.ok) {
-        const statusResult = await response.text(); // Status API returns plain text
+        const statusResult = await response.text();
         setTimelineStatus(statusResult);
       } else {
         throw new Error('Failed to fetch transaction status.');
@@ -123,16 +116,9 @@ export default function AdminDashboard() {
       console.error('Error fetching timeline status:', error);
       setTimelineStatus('UNKNOWN');
     }
-  };
-
-  // Fetch transactions when the component mounts
-  useEffect(() => {
-    fetchRecentTransactions();
   }, []);
-
-  // Effect to manage the timeline animation
+  
   useEffect(() => {
-    // Clear any existing interval to prevent multiple animations
     if (animationInterval) {
       clearInterval(animationInterval);
     }
@@ -142,11 +128,11 @@ export default function AdminDashboard() {
         const now = Date.now();
         const createdAt = new Date(selectedTransaction.createdAt).getTime();
         const lastUpdatedAt = new Date(selectedTransaction.lastUpdatedAt || selectedTransaction.createdAt).getTime();
-
+  
         let progress = 0;
-        const totalDuration1 = 60 * 1000; // 1 minute for initiated -> escrow
-        const totalDuration2 = 5 * 60 * 1000; // 5 minutes for escrow -> settled
-
+        const totalDuration1 = 60 * 1000;
+        const totalDuration2 = 5 * 60 * 1000;
+  
         if (timelineStatus === 'INITIATED' && now >= createdAt) {
           const elapsedTime = now - createdAt;
           progress = Math.min(1, elapsedTime / totalDuration1) * 50;
@@ -157,33 +143,31 @@ export default function AdminDashboard() {
           progress = 100;
           clearInterval(interval);
         } else if (timelineStatus === 'ESCROW') {
-          progress = 50; // Lock the progress at 50% if the transaction is in escrow but not yet settled
+          progress = 50;
         } else if (timelineStatus === 'SETTLED') {
-          progress = 100; // Lock the progress at 100%
+          progress = 100;
         } else if (timelineStatus === 'DISPUTE_OPEN') {
           progress = 50;
         }
-
+  
         setTimelineProgress(progress);
-      }, 500); // Update every half second
-
+      }, 500);
+  
       setAnimationInterval(interval);
     }
 
     return () => {
       if (animationInterval) {
         clearInterval(animationInterval);
+        setAnimationInterval(null);
       }
     };
-  }, [isModalOpen, selectedTransaction, timelineStatus]);
+  }, [isModalOpen, selectedTransaction, timelineStatus, animationInterval]);
 
-  // Function to handle new transaction submission using the new API endpoint
-  const handleInitiateTransaction = async (e) => {
+  const handleInitiateTransaction = useCallback(async (e) => {
     e.preventDefault();
-    setMessage('Initiating transaction...');
-    setIsSuccess(false);
-
-    // Validate the vendorId format before sending the request
+    showMessage('Initiating transaction...', false);
+    
     if (!isValidUUID(transactionForm.vendorId)) {
       showMessage('Invalid Vendor ID. Please enter a valid UUID.', false);
       return;
@@ -193,10 +177,9 @@ export default function AdminDashboard() {
       const payload = {
         ...transactionForm,
         amount: parseFloat(transactionForm.amount),
-        simulatedSuccessRate: parseFloat(transactionForm.simulatedSuccessRate) / 100, // API expects a decimal
+        simulatedSuccessRate: parseFloat(transactionForm.simulatedSuccessRate) / 100,
       };
 
-      // Updated API endpoint based on your feedback
       const response = await fetch('http://localhost:8080/api/transactions/initiate', {
         method: 'POST',
         headers: {
@@ -208,7 +191,6 @@ export default function AdminDashboard() {
       if (response.ok) {
         const result = await response.json();
         showMessage(`Transaction initiated successfully! ID: ${result.id}`, true);
-        // Reset the form to its default values
         setTransactionForm({
           vendorId: '',
           amount: 405.75,
@@ -217,7 +199,7 @@ export default function AdminDashboard() {
           simulatedSuccessRate: 95,
           initialPayloadJson: '{"item":"Bag","price":4450.75,"quantity":1}',
         });
-        fetchRecentTransactions(); // Refresh the list of transactions
+        fetchRecentTransactions();
       } else {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to initiate transaction.');
@@ -226,10 +208,9 @@ export default function AdminDashboard() {
       console.error('Error initiating transaction:', error);
       showMessage(`Error: ${error.message}`, false);
     }
-  };
-
-  // Function to handle the automated generation of random transactions
-  const handleSimulateTransactions = async (e) => {
+  }, [transactionForm, fetchRecentTransactions, showMessage, isValidUUID]);
+  
+  const handleSimulateTransactions = useCallback(async (e) => {
     e.preventDefault();
     const num = parseInt(simulationForm.numTransactions, 10);
     if (isNaN(num) || num <= 0) {
@@ -237,9 +218,7 @@ export default function AdminDashboard() {
       return;
     }
 
-    setMessage(`Starting simulation for ${num} transactions...`);
-    setIsSuccess(false);
-
+    showMessage(`Starting simulation for ${num} transactions...`, false);
     const currencies = ['USD', 'EUR', 'GBP'];
     const channels = ['VISA', 'MASTERCARD', 'AMEX', 'PAYPAL'];
     const products = ['Laptop', 'Smartphone', 'Headphones', 'Tablet', 'Monitor'];
@@ -277,28 +256,23 @@ export default function AdminDashboard() {
           throw new Error(`Failed to initiate transaction ${i + 1}: ${errorData.message || 'Unknown error'}`);
         }
       }
-
       showMessage(`${num} transactions initiated successfully!`, true);
       setSimulationForm({ numTransactions: 5 });
-      fetchRecentTransactions(); // Refresh the list after all transactions are sent
+      fetchRecentTransactions();
     } catch (error) {
       console.error('Error during simulation:', error);
       showMessage(`Error during simulation: ${error.message}`, false);
     }
-  };
+  }, [simulationForm, fetchRecentTransactions, showMessage, generateRandomUUID]);
 
-  // Function to handle failure injection
-  const handleInjectFailure = async (failureType) => {
-    // Validate UUID before sending
+  const handleInjectFailure = useCallback(async (failureType) => {
     if (!isValidUUID(injectorForm.transactionId)) {
       showMessage('Invalid Transaction ID. Please enter a valid UUID.', false);
       setInjectorIdError(true);
       return;
     }
     setInjectorIdError(false);
-
-    setMessage(`Injecting ${failureType} failure...`);
-    setIsSuccess(false);
+    showMessage(`Injecting ${failureType} failure...`, false);
 
     try {
       const response = await fetch(`http://localhost:8080/api/transactions/${injectorForm.transactionId}/inject-failure`, {
@@ -309,7 +283,7 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         showMessage(`Successfully injected ${failureType} failure into transaction ${injectorForm.transactionId}.`, true);
-        fetchRecentTransactions(); // Refresh the list of transactions
+        fetchRecentTransactions();
       } else {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to inject failure.');
@@ -318,20 +292,16 @@ export default function AdminDashboard() {
       console.error('Error injecting failure:', error);
       showMessage(`Error: ${error.message}`, false);
     }
-  };
+  }, [injectorForm, fetchRecentTransactions, showMessage, isValidUUID]);
 
-  // Function to handle dispute management
-  const handleDisputeAction = async (action) => {
-    // Validate UUID before sending
+  const handleDisputeAction = useCallback(async (action) => {
     if (!isValidUUID(disputeForm.transactionId)) {
       showMessage('Invalid Transaction ID. Please enter a valid UUID.', false);
       setDisputeIdError(true);
       return;
     }
     setDisputeIdError(false);
-
-    setMessage(`${action === 'open' ? 'Opening' : 'Resolving'} dispute for transaction ${disputeForm.transactionId}...`);
-    setIsSuccess(false);
+    showMessage(`${action === 'open' ? 'Opening' : 'Resolving'} dispute for transaction ${disputeForm.transactionId}...`, false);
 
     try {
       const response = await fetch(`http://localhost:8080/api/transactions/${disputeForm.transactionId}/${action}-dispute`, {
@@ -340,7 +310,7 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         showMessage(`Successfully ${action === 'open' ? 'opened' : 'resolved'} dispute for transaction ${disputeForm.transactionId}.`, true);
-        fetchRecentTransactions(); // Refresh the list of transactions
+        fetchRecentTransactions();
       } else {
         const errorData = await response.json();
         throw new Error(errorData.message || `Failed to ${action} dispute.`);
@@ -349,28 +319,26 @@ export default function AdminDashboard() {
       console.error(`Error ${action}ing dispute:`, error);
       showMessage(`Error: ${error.message}`, false);
     }
-  };
+  }, [disputeForm, fetchRecentTransactions, showMessage, isValidUUID]);
   
-  // Function to handle clicking on a transaction in the sidebar
-  const handleTransactionClick = (tx) => {
+  const handleTransactionClick = useCallback((tx) => {
     setSelectedTransaction(tx);
-    fetchTimelineStatus(tx.id); // Fetch the live status for the timeline
+    fetchTimelineStatus(tx.id);
     setIsModalOpen(true);
-  };
+  }, [fetchTimelineStatus]);
   
-  // Function to close the modal
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setSelectedTransaction(null);
-    setTimelineStatus(null); // Reset timeline status when closing
-    setTimelineProgress(0); // Reset animation progress
+    setTimelineStatus(null);
+    setTimelineProgress(0);
     if (animationInterval) {
       clearInterval(animationInterval);
       setAnimationInterval(null);
     }
-  };
+  }, [animationInterval]);
 
-  const getStatusColor = (status) => {
+  const getStatusColor = useCallback((status) => {
     switch (status) {
       case 'INITIATED':
         return 'bg-yellow-500 text-black';
@@ -380,13 +348,16 @@ export default function AdminDashboard() {
         return 'bg-green-500 text-white';
       case 'FAILED':
         return 'bg-red-500 text-white';
+      case 'SETTLED':
+        return 'bg-green-600 text-white';
+      case 'ESCROW':
+        return 'bg-indigo-600 text-white';
       default:
         return 'bg-gray-500 text-white';
     }
-  };
+  }, []);
 
-  const getTimelineColor = (currentStatus, stage) => {
-    // This function determines the color for the timeline blocks based on the live status
+  const getTimelineColor = useCallback((currentStatus, stage) => {
     const statusMap = {
       INITIATED: 1,
       ESCROW: 2,
@@ -402,261 +373,275 @@ export default function AdminDashboard() {
       SETTLED: 3
     };
     
-    // Check if the current stage is reached or passed
     if (statusMap[currentStatus] >= stageMap[stage]) {
       return 'bg-indigo-600 text-white';
     }
     return 'bg-gray-200 text-gray-400';
-  }
+  }, []);
 
   return (
-    // The main container is now a single column layout
-    <div className="bg-gray-100 font-sans text-gray-800 p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">Admin Dashboard</h1>
-
-        {/* Status/Message Box */}
-        {message && (
-          <div className={`p-4 mb-6 rounded-lg font-medium text-lg ${isSuccess ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-            {message}
+    <div className="max-w-4xl mx-auto">
+      {/* Simulation Manager Section */}
+      <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">🤖 Simulation Manager</h2>
+        <form onSubmit={handleSimulateTransactions} className="space-y-4">
+          <div>
+            <label htmlFor="numTransactions" className="block text-sm font-medium text-gray-700 mb-1">Number of Transactions to Simulate</label>
+            <input
+              type="number"
+              id="numTransactions"
+              name="numTransactions"
+              value={simulationForm.numTransactions}
+              onChange={handleSimulationFormChange}
+              min="1"
+              required
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
+            />
           </div>
-        )}
+          <button
+            type="submit"
+            className="w-full py-3 px-6 bg-purple-600 text-white rounded-xl shadow-lg hover:bg-purple-700 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
+          >
+            Start Simulation
+          </button>
+        </form>
+      </section>
 
-        {/* Simulation Manager Section */}
-        <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">🤖 Simulation Manager</h2>
-          <form onSubmit={handleSimulateTransactions} className="space-y-4">
+      {/* Transaction Initiator Section */}
+      <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">🚀 Initiate New Transaction</h2>
+        <form onSubmit={handleInitiateTransaction} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="numTransactions" className="block text-sm font-medium text-gray-700 mb-1">Number of Transactions to Simulate</label>
+              <label htmlFor="vendorId" className="block text-sm font-medium text-gray-700 mb-1">Vendor ID</label>
               <input
-                type="number"
-                id="numTransactions"
-                name="numTransactions"
-                value={simulationForm.numTransactions}
-                onChange={handleSimulationFormChange}
-                min="1"
+                type="text"
+                id="vendorId"
+                name="vendorId"
+                value={transactionForm.vendorId}
+                onChange={handleTransactionFormChange}
+                placeholder="Enter Vendor ID (UUID)"
                 required
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
               />
             </div>
-            <button
-              type="submit"
-              className="w-full py-3 px-6 bg-purple-600 text-white rounded-xl shadow-lg hover:bg-purple-700 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-            >
-              Start Simulation
-            </button>
-          </form>
-        </section>
-
-        {/* Transaction Initiator Section */}
-        <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">🚀 Initiate New Transaction</h2>
-          <form onSubmit={handleInitiateTransaction} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="vendorId" className="block text-sm font-medium text-gray-700 mb-1">Vendor ID</label>
-                <input
-                  type="text"
-                  id="vendorId"
-                  name="vendorId"
-                  value={transactionForm.vendorId}
-                  onChange={handleTransactionFormChange}
-                  placeholder="Enter Vendor ID (UUID)"
-                  required
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-                />
-              </div>
-              <div>
-                <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                <input
-                  type="number"
-                  id="amount"
-                  name="amount"
-                  value={transactionForm.amount}
-                  onChange={handleTransactionFormChange}
-                  step="0.01"
-                  required
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-                />
-              </div>
-              <div>
-                <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-                <input
-                  type="text"
-                  id="currency"
-                  name="currency"
-                  value={transactionForm.currency}
-                  onChange={handleTransactionFormChange}
-                  required
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-                />
-              </div>
-              <div>
-                <label htmlFor="channel" className="block text-sm font-medium text-gray-700 mb-1">Channel</label>
-                <input
-                  type="text"
-                  id="channel"
-                  name="channel"
-                  value={transactionForm.channel}
-                  onChange={handleTransactionFormChange}
-                  required
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-                />
-              </div>
-              <div>
-                <label htmlFor="simulatedSuccessRate" className="block text-sm font-medium text-gray-700 mb-1">Simulated Success Rate (%)</label>
-                <input
-                  type="number"
-                  id="simulatedSuccessRate"
-                  name="simulatedSuccessRate"
-                  value={transactionForm.simulatedSuccessRate}
-                  onChange={handleTransactionFormChange}
-                  min="0"
-                  max="100"
-                  required
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-                />
-              </div>
-            </div>
-
             <div>
-              <label htmlFor="initialPayloadJson" className="block text-sm font-medium text-gray-700 mb-1">Initial Payload (JSON String)</label>
-              <textarea
-                id="initialPayloadJson"
-                name="initialPayloadJson"
-                value={transactionForm.initialPayloadJson}
+              <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+              <input
+                type="number"
+                id="amount"
+                name="amount"
+                value={transactionForm.amount}
                 onChange={handleTransactionFormChange}
-                rows="6"
+                step="0.01"
                 required
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 font-mono transition duration-150 ease-in-out"
-              ></textarea>
-            </div>
-            
-            <button
-              type="submit"
-              className="w-full py-3 px-6 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-            >
-              Initiate Transaction
-            </button>
-          </form>
-        </section>
-
-        {/* Failure Injector Section */}
-        <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">🧪 Failure Injector</h2>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="injectorTransactionId" className="block text-sm font-medium text-gray-700 mb-1">Transaction ID to Modify</label>
-              <input
-                type="text"
-                id="injectorTransactionId"
-                name="transactionId"
-                value={injectorForm.transactionId}
-                onChange={(e) => {
-                  setInjectorForm({ transactionId: e.target.value });
-                  setInjectorIdError(false); // Clear error on change
-                }}
-                placeholder="Enter Transaction UUID"
-                className={`w-full rounded-md shadow-sm transition duration-150 ease-in-out ${
-                  injectorIdError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-red-500 focus:ring-red-500'
-                }`}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
               />
             </div>
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-              <button
-                onClick={() => handleInjectFailure('WEBHOOK_FAIL')}
-                className="flex-1 py-3 px-6 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-              >
-                Inject Webhook Failure
-              </button>
-              <button
-                onClick={() => handleInjectFailure('TTL_EXPIRE')}
-                className="flex-1 py-3 px-6 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-              >
-                Inject TTL Expiry
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* Dispute Manager Section */}
-        <section className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200 mb-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">⚖️ Dispute Manager</h2>
-          <div className="space-y-4">
             <div>
-              <label htmlFor="disputeTransactionId" className="block text-sm font-medium text-gray-700 mb-1">Transaction ID to Manage</label>
+              <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
               <input
                 type="text"
-                id="disputeTransactionId"
-                name="transactionId"
-                value={disputeForm.transactionId}
-                onChange={(e) => {
-                  setDisputeForm({ transactionId: e.target.value });
-                  setDisputeIdError(false); // Clear error on change
-                }}
-                placeholder="Enter Transaction UUID"
-                className={`w-full rounded-md shadow-sm transition duration-150 ease-in-out ${
-                  disputeIdError ? 'border-red-500 focus:border-amber-500 focus:ring-amber-500' : 'border-gray-300 focus:border-amber-500 focus:ring-amber-500'
-                }`}
+                id="currency"
+                name="currency"
+                value={transactionForm.currency}
+                onChange={handleTransactionFormChange}
+                required
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
               />
             </div>
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-              <button
-                onClick={() => handleDisputeAction('open')}
-                className="flex-1 py-3 px-6 bg-amber-500 text-white rounded-xl shadow-lg hover:bg-amber-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-              >
-                Open Dispute
-              </button>
-              <button
-                onClick={() => handleDisputeAction('resolve')}
-                className="flex-1 py-3 px-6 bg-green-500 text-white rounded-xl shadow-lg hover:bg-green-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-              >
-                Resolve Dispute
-              </button>
+            <div>
+              <label htmlFor="channel" className="block text-sm font-medium text-gray-700 mb-1">Channel</label>
+              <input
+                type="text"
+                id="channel"
+                name="channel"
+                value={transactionForm.channel}
+                onChange={handleTransactionFormChange}
+                required
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
+              />
+            </div>
+            <div>
+              <label htmlFor="simulatedSuccessRate" className="block text-sm font-medium text-gray-700 mb-1">Simulated Success Rate (%)</label>
+              <input
+                type="number"
+                id="simulatedSuccessRate"
+                name="simulatedSuccessRate"
+                value={transactionForm.simulatedSuccessRate}
+                onChange={handleTransactionFormChange}
+                min="0"
+                max="100"
+                required
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
+              />
             </div>
           </div>
-        </section>
 
-        {/* Recent Transactions Section (Moved from sidebar) */}
-        <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-800">📊 Recent Transactions</h2>
+          <div>
+            <label htmlFor="initialPayloadJson" className="block text-sm font-medium text-gray-700 mb-1">Initial Payload (JSON String)</label>
+            <textarea
+              id="initialPayloadJson"
+              name="initialPayloadJson"
+              value={transactionForm.initialPayloadJson}
+              onChange={handleTransactionFormChange}
+              rows="6"
+              required
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 font-mono transition duration-150 ease-in-out"
+            ></textarea>
+          </div>
+          
+          <button
+            type="submit"
+            className="w-full py-3 px-6 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
+          >
+            Initiate Transaction
+          </button>
+        </form>
+      </section>
+
+      {/* Failure Injector Section */}
+      <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">🧪 Failure Injector</h2>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="injectorTransactionId" className="block text-sm font-medium text-gray-700 mb-1">Transaction ID to Modify</label>
+            <input
+              type="text"
+              id="injectorTransactionId"
+              name="transactionId"
+              value={injectorForm.transactionId}
+              onChange={(e) => {
+                setInjectorForm({ transactionId: e.target.value });
+                setInjectorIdError(false);
+              }}
+              placeholder="Enter Transaction UUID"
+              className={`w-full rounded-md shadow-sm transition duration-150 ease-in-out ${
+                injectorIdError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-red-500 focus:ring-red-500'
+              }`}
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
             <button
-              onClick={fetchRecentTransactions}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-lg hover:bg-indigo-700 transition duration-300 ease-in-out font-semibold"
+              onClick={() => handleInjectFailure('WEBHOOK_FAIL')}
+              className="flex-1 py-3 px-6 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
             >
-              Refresh
+              Inject Webhook Failure
+            </button>
+            <button
+              onClick={() => handleInjectFailure('TTL_EXPIRE')}
+              className="flex-1 py-3 px-6 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
+            >
+              Inject TTL Expiry
             </button>
           </div>
-          <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-            {loading ? (
-              <div className="text-gray-400 text-center mt-8">Loading transactions...</div>
-            ) : transactions.length > 0 ? (
-              transactions.map(tx => (
-                <div 
-                  key={tx.id} 
-                  className="bg-gray-100 p-4 rounded-xl shadow-lg border border-gray-200 hover:bg-gray-200 transition-colors duration-200 cursor-pointer"
-                  onClick={() => handleTransactionClick(tx)}
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-semibold text-indigo-700">ID: {tx.id.substring(0, 8)}...</span>
-                    <span className={`px-2 py-1 text-xs font-bold rounded-full ${getStatusColor(tx.status || 'UNKNOWN')}`}>
-                      {tx.status ? tx.status.toUpperCase() : 'UNKNOWN'}
-                    </span>
-                  </div>
-                  <p className="text-lg font-bold">
-                    {tx.currency} {tx.amount}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">{tx.vendorId.substring(0,8)}... via {tx.channel}</p>
+        </div>
+      </section>
+
+      {/* Dispute Manager Section */}
+      <section className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200 mb-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">⚖️ Dispute Manager</h2>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="disputeTransactionId" className="block text-sm font-medium text-gray-700 mb-1">Transaction ID to Manage</label>
+            <input
+              type="text"
+              id="disputeTransactionId"
+              name="transactionId"
+              value={disputeForm.transactionId}
+              onChange={(e) => {
+                setDisputeForm({ transactionId: e.target.value });
+                setDisputeIdError(false);
+              }}
+              placeholder="Enter Transaction UUID"
+              className={`w-full rounded-md shadow-sm transition duration-150 ease-in-out ${
+                disputeIdError ? 'border-red-500 focus:border-amber-500 focus:ring-amber-500' : 'border-gray-300 focus:border-amber-500 focus:ring-amber-500'
+              }`}
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+            <button
+              onClick={() => handleDisputeAction('open')}
+              className="flex-1 py-3 px-6 bg-amber-500 text-white rounded-xl shadow-lg hover:bg-amber-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
+            >
+              Open Dispute
+            </button>
+            <button
+              onClick={() => handleDisputeAction('resolve')}
+              className="flex-1 py-3 px-6 bg-green-500 text-white rounded-xl shadow-lg hover:bg-green-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
+            >
+              Resolve Dispute
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Recent Transactions Section */}
+      <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold text-gray-800">📊 Recent Transactions</h2>
+          <button
+            onClick={fetchRecentTransactions}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-lg hover:bg-indigo-700 transition duration-300 ease-in-out font-semibold"
+          >
+            Refresh
+          </button>
+        </div>
+        
+        {/* Search and Filter Inputs */}
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mb-4">
+          <input
+            type="text"
+            placeholder="Search by ID or Vendor ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full sm:w-1/3 p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="INITIATED">Initiated</option>
+            <option value="ESCROW">Escrow</option>
+            <option value="SETTLED">Settled</option>
+            <option value="FAILED">Failed</option>
+            <option value="DISPUTE_OPEN">Dispute Open</option>
+            <option value="DISPUTE_RESOLVED">Dispute Resolved</option>
+            <option value="WEBHOOK_FAIL">Webhook Failed</option>
+            <option value="TTL_EXPIRE">TTL Expired</option>
+          </select>
+        </div>
+
+        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+          {loading ? (
+            <div className="text-gray-400 text-center mt-8">Loading transactions...</div>
+          ) : filteredTransactions.length > 0 ? (
+            filteredTransactions.map(tx => (
+              <div 
+                key={tx.id} 
+                className="bg-gray-100 p-4 rounded-xl shadow-lg border border-gray-200 hover:bg-gray-200 transition-colors duration-200 cursor-pointer"
+                onClick={() => handleTransactionClick(tx)}
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-semibold text-indigo-700">ID: {tx.id.substring(0, 8)}...</span>
+                  <span className={`px-2 py-1 text-xs font-bold rounded-full ${getStatusColor(tx.status || 'UNKNOWN')}`}>
+                    {tx.status ? tx.status.toUpperCase() : 'UNKNOWN'}
+                  </span>
                 </div>
-              ))
-            ) : (
-              <div className="text-gray-500 text-center mt-8">No recent transactions.</div>
-            )}
-          </div>
-        </section>
-      </div>
-
+                <p className="text-lg font-bold">
+                  {tx.currency} {tx.amount}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">{tx.vendorId.substring(0,8)}... via {tx.channel}</p>
+              </div>
+            ))
+          ) : (
+            <div className="text-gray-500 text-center mt-8">No recent transactions matching your criteria.</div>
+          )}
+        </div>
+      </section>
+      
       {/* Transaction Details Modal */}
       {isModalOpen && selectedTransaction && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
@@ -696,7 +681,6 @@ export default function AdminDashboard() {
                 <div className="text-center text-gray-500 py-4">Loading timeline status...</div>
               ) : (
                 <div className="flex justify-between items-center relative">
-                  {/* Progress bar animation */}
                   <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-200 -z-10">
                     <div 
                       className="h-full bg-indigo-600 transition-all duration-500 ease-out rounded-full"
@@ -721,6 +705,205 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+    </div>
+  );
+});
+
+// AnalyticsDashboard Component - Wrapped in React.memo for performance
+const AnalyticsDashboard = React.memo(({ transactions }) => {
+  // Memoize analytics data to prevent re-calculation on every render
+  const analyticsData = useMemo(() => {
+    // 1. Transactions by Status
+    const statusCountsMap = transactions.reduce((acc, tx) => {
+      const status = tx.currentStatus || 'UNKNOWN';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+    const statusCounts = Object.keys(statusCountsMap).map(status => ({ status, count: statusCountsMap[status] }));
+
+    // 2. Transactions by Channel
+    const channelDistributionMap = transactions.reduce((acc, tx) => {
+      const channel = tx.channel || 'UNKNOWN';
+      acc[channel] = (acc[channel] || 0) + 1;
+      return acc;
+    }, {});
+    const channelDistribution = Object.keys(channelDistributionMap).map(channel => ({ channel, count: channelDistributionMap[channel] }));
+
+    // 3. Transaction Volume Over Time
+    const timeSeriesMap = transactions.reduce((acc, tx) => {
+      const date = moment(tx.createdAt).format('YYYY-MM-DD');
+      if (!acc[date]) {
+        acc[date] = { timestamp: date, volume: 0 };
+      }
+      acc[date].volume += 1;
+      return acc;
+    }, {});
+    const timeSeries = Object.values(timeSeriesMap).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    return { statusCounts, channelDistribution, timeSeries };
+  }, [transactions]);
+
+  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00c49f', '#ffbb28', '#ff8042'];
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Interactive Analytics</h2>
+      {transactions.length === 0 ? (
+        <div className="text-gray-400 text-center py-16">No transactions available to generate analytics.</div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Transactions by Status Bar Chart */}
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">Transactions by Status</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analyticsData.statusCounts} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="status" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Transactions by Channel Pie Chart */}
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 flex flex-col items-center">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">Transactions by Channel</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={analyticsData.channelDistribution}
+                  dataKey="count"
+                  nameKey="channel"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  fill="#8884d8"
+                  label
+                >
+                  {analyticsData.channelDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Transaction Volume Over Time Line Chart */}
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 lg:col-span-2">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">Transaction Volume Over Time</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={analyticsData.timeSeries} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="timestamp" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="volume" stroke="#82ca9d" activeDot={{ r: 8 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// Main App component that handles routing and layout
+export default function App() {
+  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [transactions, setTransactions] = useState([]);
+  const [message, setMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Function to display messages to the user, wrapped in useCallback
+  const showMessage = useCallback((msg, success) => {
+    setMessage(msg);
+    setIsSuccess(success);
+    setTimeout(() => {
+      setMessage('');
+    }, 5000);
+  }, []);
+  
+  // Function to fetch recent transactions from the API, wrapped in useCallback
+  const fetchRecentTransactions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:8080/api/transactions', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const sortedTransactions = Array.isArray(result) ? result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : [];
+        setTransactions(sortedTransactions);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch transactions.');
+      }
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      showMessage(`Error fetching transactions: ${error.message}`, false);
+    } finally {
+      setLoading(false);
+    }
+  }, [showMessage]);
+
+  // Effect to re-fetch transactions on initial load
+  useEffect(() => {
+    fetchRecentTransactions();
+  }, [fetchRecentTransactions]);
+
+  return (
+    <div className="bg-gray-100 font-sans text-gray-800 p-8 min-h-screen">
+      {/* Navigation Bar */}
+      <nav className="bg-white shadow-lg rounded-full p-4 mb-8 max-w-2xl mx-auto">
+        <ul className="flex justify-center space-x-8">
+          <li>
+            <button 
+              onClick={() => setCurrentPage('dashboard')} 
+              className={`font-semibold text-lg py-2 px-4 rounded-full transition-colors duration-200 ${currentPage === 'dashboard' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              Dashboard
+            </button>
+          </li>
+          <li>
+            <button 
+              onClick={() => setCurrentPage('analytics')} 
+              className={`font-semibold text-lg py-2 px-4 rounded-full transition-colors duration-200 ${currentPage === 'analytics' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              Analytics
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">TrackTrove Admin Console</h1>
+        {message && (
+          <div className={`p-4 mb-6 rounded-lg font-medium text-lg max-w-4xl mx-auto ${isSuccess ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {message}
+          </div>
+        )}
+        
+        {currentPage === 'dashboard' ? (
+          <AdminDashboard 
+            transactions={transactions}
+            fetchRecentTransactions={fetchRecentTransactions}
+            showMessage={showMessage}
+            loading={loading}
+          />
+        ) : (
+          <AnalyticsDashboard transactions={transactions} />
+        )}
+      </div>
     </div>
   );
 }
