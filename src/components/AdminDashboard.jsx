@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 // Main component for the Admin Dashboard
 export default function AdminDashboard() {
   const [transactionForm, setTransactionForm] = useState({
-    vendorId: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
+    // Vendor ID is no longer hardcoded to allow for different vendors
+    vendorId: '', 
     amount: 405.75,
     currency: 'USD',
     channel: 'VISA',
@@ -11,6 +12,10 @@ export default function AdminDashboard() {
     initialPayloadJson: '{"item":"Bag","price":4450.75,"quantity":1}',
   });
   
+  const [simulationForm, setSimulationForm] = useState({
+    numTransactions: 5,
+  });
+
   const [injectorForm, setInjectorForm] = useState({
     transactionId: '',
   });
@@ -36,11 +41,28 @@ export default function AdminDashboard() {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     return uuidRegex.test(uuid);
   };
+  
+  // A function to generate a random UUID for demonstration purposes
+  const generateRandomUUID = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
 
   // Function to handle form changes for the transaction form
   const handleTransactionFormChange = (e) => {
     const { name, value } = e.target;
     setTransactionForm(prevState => ({
+      ...prevState,
+      [name]: value,
+    }));
+  };
+  
+  // Function to handle form changes for the simulation form
+  const handleSimulationFormChange = (e) => {
+    const { name, value } = e.target;
+    setSimulationForm(prevState => ({
       ...prevState,
       [name]: value,
     }));
@@ -161,6 +183,12 @@ export default function AdminDashboard() {
     setMessage('Initiating transaction...');
     setIsSuccess(false);
 
+    // Validate the vendorId format before sending the request
+    if (!isValidUUID(transactionForm.vendorId)) {
+      showMessage('Invalid Vendor ID. Please enter a valid UUID.', false);
+      return;
+    }
+
     try {
       const payload = {
         ...transactionForm,
@@ -182,7 +210,7 @@ export default function AdminDashboard() {
         showMessage(`Transaction initiated successfully! ID: ${result.id}`, true);
         // Reset the form to its default values
         setTransactionForm({
-          vendorId: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
+          vendorId: '',
           amount: 405.75,
           currency: 'USD',
           channel: 'VISA',
@@ -197,6 +225,65 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error initiating transaction:', error);
       showMessage(`Error: ${error.message}`, false);
+    }
+  };
+
+  // Function to handle the automated generation of random transactions
+  const handleSimulateTransactions = async (e) => {
+    e.preventDefault();
+    const num = parseInt(simulationForm.numTransactions, 10);
+    if (isNaN(num) || num <= 0) {
+      showMessage('Please enter a valid number of transactions to simulate.', false);
+      return;
+    }
+
+    setMessage(`Starting simulation for ${num} transactions...`);
+    setIsSuccess(false);
+
+    const currencies = ['USD', 'EUR', 'GBP'];
+    const channels = ['VISA', 'MASTERCARD', 'AMEX', 'PAYPAL'];
+    const products = ['Laptop', 'Smartphone', 'Headphones', 'Tablet', 'Monitor'];
+
+    try {
+      for (let i = 0; i < num; i++) {
+        const vendorId = generateRandomUUID();
+        const amount = (Math.random() * 1000 + 10).toFixed(2);
+        const currency = currencies[Math.floor(Math.random() * currencies.length)];
+        const channel = channels[Math.floor(Math.random() * channels.length)];
+        const simulatedSuccessRate = Math.random() * 100;
+        const product = products[Math.floor(Math.random() * products.length)];
+        const quantity = Math.floor(Math.random() * 3) + 1;
+        const initialPayloadJson = JSON.stringify({ item: product, price: amount, quantity: quantity });
+
+        const payload = {
+          vendorId,
+          amount: parseFloat(amount),
+          currency,
+          channel,
+          simulatedSuccessRate,
+          initialPayloadJson
+        };
+
+        const response = await fetch('http://localhost:8080/api/transactions/initiate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Failed to initiate transaction ${i + 1}: ${errorData.message || 'Unknown error'}`);
+        }
+      }
+
+      showMessage(`${num} transactions initiated successfully!`, true);
+      setSimulationForm({ numTransactions: 5 });
+      fetchRecentTransactions(); // Refresh the list after all transactions are sent
+    } catch (error) {
+      console.error('Error during simulation:', error);
+      showMessage(`Error during simulation: ${error.message}`, false);
     }
   };
 
@@ -335,6 +422,32 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* Simulation Manager Section */}
+        <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">🤖 Simulation Manager</h2>
+          <form onSubmit={handleSimulateTransactions} className="space-y-4">
+            <div>
+              <label htmlFor="numTransactions" className="block text-sm font-medium text-gray-700 mb-1">Number of Transactions to Simulate</label>
+              <input
+                type="number"
+                id="numTransactions"
+                name="numTransactions"
+                value={simulationForm.numTransactions}
+                onChange={handleSimulationFormChange}
+                min="1"
+                required
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full py-3 px-6 bg-purple-600 text-white rounded-xl shadow-lg hover:bg-purple-700 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
+            >
+              Start Simulation
+            </button>
+          </form>
+        </section>
+
         {/* Transaction Initiator Section */}
         <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">🚀 Initiate New Transaction</h2>
@@ -348,6 +461,7 @@ export default function AdminDashboard() {
                   name="vendorId"
                   value={transactionForm.vendorId}
                   onChange={handleTransactionFormChange}
+                  placeholder="Enter Vendor ID (UUID)"
                   required
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
                 />
