@@ -162,7 +162,7 @@ const AdminDashboard = React.memo(({ transactions, fetchRecentTransactions, show
         setAnimationInterval(null);
       }
     };
-  }, [isModalOpen, selectedTransaction, timelineStatus, animationInterval]);
+  }, [isModalOpen, selectedTransaction, timelineStatus, animationInterval],[]);
 
   const handleInitiateTransaction = useCallback(async (e) => {
     e.preventDefault();
@@ -341,19 +341,19 @@ const AdminDashboard = React.memo(({ transactions, fetchRecentTransactions, show
   const getStatusColor = useCallback((status) => {
     switch (status) {
       case 'INITIATED':
-        return 'bg-yellow-500 text-black';
+        return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
       case 'DISPUTE_OPEN':
-        return 'bg-amber-500 text-white';
+        return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
       case 'DISPUTE_RESOLVED':
-        return 'bg-green-500 text-white';
+        return 'bg-green-500/10 text-green-400 border border-green-500/20';
       case 'FAILED':
-        return 'bg-red-500 text-white';
+        return 'bg-red-500/10 text-red-400 border border-red-500/20';
       case 'SETTLED':
-        return 'bg-green-600 text-white';
+        return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
       case 'ESCROW':
-        return 'bg-indigo-600 text-white';
+        return 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20';
       default:
-        return 'bg-gray-500 text-white';
+        return 'bg-gray-500/10 text-gray-400 border border-gray-500/20';
     }
   }, []);
 
@@ -374,332 +374,224 @@ const AdminDashboard = React.memo(({ transactions, fetchRecentTransactions, show
     };
     
     if (statusMap[currentStatus] >= stageMap[stage]) {
-      return 'bg-indigo-600 text-white';
+      return 'bg-indigo-500 text-white';
     }
-    return 'bg-gray-200 text-gray-400';
+    return 'bg-slate-600 text-slate-400';
   }, []);
 
+  const cardBaseClasses = "bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl shadow-2xl shadow-black/20";
+  const inputClasses = "w-full rounded-md bg-slate-700 border-slate-600 text-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out";
+  const labelClasses = "block text-sm font-medium text-slate-300 mb-1";
+  const buttonBaseClasses = "w-full py-3 px-6 text-white rounded-xl shadow-lg transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold";
+
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Simulation Manager Section */}
-      <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">🤖 Simulation Manager</h2>
-        <form onSubmit={handleSimulateTransactions} className="space-y-4">
-          <div>
-            <label htmlFor="numTransactions" className="block text-sm font-medium text-gray-700 mb-1">Number of Transactions to Simulate</label>
-            <input
-              type="number"
-              id="numTransactions"
-              name="numTransactions"
-              value={simulationForm.numTransactions}
-              onChange={handleSimulationFormChange}
-              min="1"
-              required
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full py-3 px-6 bg-purple-600 text-white rounded-xl shadow-lg hover:bg-purple-700 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-          >
-            Start Simulation
-          </button>
-        </form>
-      </section>
-
-      {/* Transaction Initiator Section */}
-      <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">🚀 Initiate New Transaction</h2>
-        <form onSubmit={handleInitiateTransaction} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="vendorId" className="block text-sm font-medium text-gray-700 mb-1">Vendor ID</label>
-              <input
-                type="text"
-                id="vendorId"
-                name="vendorId"
-                value={transactionForm.vendorId}
-                onChange={handleTransactionFormChange}
-                placeholder="Enter Vendor ID (UUID)"
-                required
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-              />
-            </div>
-            <div>
-              <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-              <input
-                type="number"
-                id="amount"
-                name="amount"
-                value={transactionForm.amount}
-                onChange={handleTransactionFormChange}
-                step="0.01"
-                required
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-              />
-            </div>
-            <div>
-              <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-              <input
-                type="text"
-                id="currency"
-                name="currency"
-                value={transactionForm.currency}
-                onChange={handleTransactionFormChange}
-                required
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-              />
-            </div>
-            <div>
-              <label htmlFor="channel" className="block text-sm font-medium text-gray-700 mb-1">Channel</label>
-              <input
-                type="text"
-                id="channel"
-                name="channel"
-                value={transactionForm.channel}
-                onChange={handleTransactionFormChange}
-                required
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-              />
-            </div>
-            <div>
-              <label htmlFor="simulatedSuccessRate" className="block text-sm font-medium text-gray-700 mb-1">Simulated Success Rate (%)</label>
-              <input
-                type="number"
-                id="simulatedSuccessRate"
-                name="simulatedSuccessRate"
-                value={transactionForm.simulatedSuccessRate}
-                onChange={handleTransactionFormChange}
-                min="0"
-                max="100"
-                required
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="initialPayloadJson" className="block text-sm font-medium text-gray-700 mb-1">Initial Payload (JSON String)</label>
-            <textarea
-              id="initialPayloadJson"
-              name="initialPayloadJson"
-              value={transactionForm.initialPayloadJson}
-              onChange={handleTransactionFormChange}
-              rows="6"
-              required
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 font-mono transition duration-150 ease-in-out"
-            ></textarea>
-          </div>
-          
-          <button
-            type="submit"
-            className="w-full py-3 px-6 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-          >
-            Initiate Transaction
-          </button>
-        </form>
-      </section>
-
-      {/* Failure Injector Section */}
-      <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">🧪 Failure Injector</h2>
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="injectorTransactionId" className="block text-sm font-medium text-gray-700 mb-1">Transaction ID to Modify</label>
-            <input
-              type="text"
-              id="injectorTransactionId"
-              name="transactionId"
-              value={injectorForm.transactionId}
-              onChange={(e) => {
-                setInjectorForm({ transactionId: e.target.value });
-                setInjectorIdError(false);
-              }}
-              placeholder="Enter Transaction UUID"
-              className={`w-full rounded-md shadow-sm transition duration-150 ease-in-out ${
-                injectorIdError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-red-500 focus:ring-red-500'
-              }`}
-            />
-          </div>
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-            <button
-              onClick={() => handleInjectFailure('WEBHOOK_FAIL')}
-              className="flex-1 py-3 px-6 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-            >
-              Inject Webhook Failure
-            </button>
-            <button
-              onClick={() => handleInjectFailure('TTL_EXPIRE')}
-              className="flex-1 py-3 px-6 bg-red-500 text-white rounded-xl shadow-lg hover:bg-red-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-            >
-              Inject TTL Expiry
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Dispute Manager Section */}
-      <section className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200 mb-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">⚖️ Dispute Manager</h2>
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="disputeTransactionId" className="block text-sm font-medium text-gray-700 mb-1">Transaction ID to Manage</label>
-            <input
-              type="text"
-              id="disputeTransactionId"
-              name="transactionId"
-              value={disputeForm.transactionId}
-              onChange={(e) => {
-                setDisputeForm({ transactionId: e.target.value });
-                setDisputeIdError(false);
-              }}
-              placeholder="Enter Transaction UUID"
-              className={`w-full rounded-md shadow-sm transition duration-150 ease-in-out ${
-                disputeIdError ? 'border-red-500 focus:border-amber-500 focus:ring-amber-500' : 'border-gray-300 focus:border-amber-500 focus:ring-amber-500'
-              }`}
-            />
-          </div>
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-            <button
-              onClick={() => handleDisputeAction('open')}
-              className="flex-1 py-3 px-6 bg-amber-500 text-white rounded-xl shadow-lg hover:bg-amber-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-            >
-              Open Dispute
-            </button>
-            <button
-              onClick={() => handleDisputeAction('resolve')}
-              className="flex-1 py-3 px-6 bg-green-500 text-white rounded-xl shadow-lg hover:bg-green-600 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 font-semibold"
-            >
-              Resolve Dispute
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Recent Transactions Section */}
-      <section className="bg-white shadow-xl rounded-2xl p-6 mb-8 border border-gray-200">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-gray-800">📊 Recent Transactions</h2>
-          <button
-            onClick={fetchRecentTransactions}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-lg hover:bg-indigo-700 transition duration-300 ease-in-out font-semibold"
-          >
-            Refresh
-          </button>
-        </div>
-        
-        {/* Search and Filter Inputs */}
-        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mb-4">
-          <input
-            type="text"
-            placeholder="Search by ID or Vendor ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full sm:w-1/3 p-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="INITIATED">Initiated</option>
-            <option value="ESCROW">Escrow</option>
-            <option value="SETTLED">Settled</option>
-            <option value="FAILED">Failed</option>
-            <option value="DISPUTE_OPEN">Dispute Open</option>
-            <option value="DISPUTE_RESOLVED">Dispute Resolved</option>
-            <option value="WEBHOOK_FAIL">Webhook Failed</option>
-            <option value="TTL_EXPIRE">TTL Expired</option>
-          </select>
-        </div>
-
-        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-          {loading ? (
-            <div className="text-gray-400 text-center mt-8">Loading transactions...</div>
-          ) : filteredTransactions.length > 0 ? (
-            filteredTransactions.map(tx => (
-              <div 
-                key={tx.id} 
-                className="bg-gray-100 p-4 rounded-xl shadow-lg border border-gray-200 hover:bg-gray-200 transition-colors duration-200 cursor-pointer"
-                onClick={() => handleTransactionClick(tx)}
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-semibold text-indigo-700">ID: {tx.id.substring(0, 8)}...</span>
-                  <span className={`px-2 py-1 text-xs font-bold rounded-full ${getStatusColor(tx.status || 'UNKNOWN')}`}>
-                    {tx.status ? tx.status.toUpperCase() : 'UNKNOWN'}
-                  </span>
-                </div>
-                <p className="text-lg font-bold">
-                  {tx.currency} {tx.amount}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">{tx.vendorId.substring(0,8)}... via {tx.channel}</p>
+    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 lg:items-start">
+      {/* Left Column */}
+      <div className="lg:col-span-1 flex flex-col gap-8">
+        {/* Simulation Manager Section */}
+        <section className={cardBaseClasses}>
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 mb-4">🤖 Simulation Manager</h2>
+            <form onSubmit={handleSimulateTransactions} className="space-y-4">
+              <div>
+                <label htmlFor="numTransactions" className={labelClasses}>Number of Transactions</label>
+                <input type="number" id="numTransactions" name="numTransactions" value={simulationForm.numTransactions} onChange={handleSimulationFormChange} min="1" required className={inputClasses} />
               </div>
-            ))
-          ) : (
-            <div className="text-gray-500 text-center mt-8">No recent transactions matching your criteria.</div>
-          )}
-        </div>
-      </section>
+              <button type="submit" className={`${buttonBaseClasses} bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700`}>
+                Start Simulation
+              </button>
+            </form>
+          </div>
+        </section>
+
+        {/* Failure Injector Section */}
+        <section className={cardBaseClasses}>
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-red-400 mb-4">🧪 Failure Injector</h2>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="injectorTransactionId" className={labelClasses}>Transaction ID to Modify</label>
+                <input type="text" id="injectorTransactionId" name="transactionId" value={injectorForm.transactionId} onChange={(e) => { setInjectorForm({ transactionId: e.target.value }); setInjectorIdError(false); }} placeholder="Enter Transaction UUID" className={`${inputClasses} ${injectorIdError ? 'border-red-500 ring-red-500' : 'focus:border-red-500 focus:ring-red-500'}`} />
+              </div>
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                <button onClick={() => handleInjectFailure('WEBHOOK_FAIL')} className={`${buttonBaseClasses} bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600`}>
+                  Webhook Fail
+                </button>
+                <button onClick={() => handleInjectFailure('TTL_EXPIRE')} className={`${buttonBaseClasses} bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600`}>
+                  TTL Expiry
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Dispute Manager Section */}
+        <section className={cardBaseClasses}>
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400 mb-4">⚖️ Dispute Manager</h2>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="disputeTransactionId" className={labelClasses}>Transaction ID to Manage</label>
+                <input type="text" id="disputeTransactionId" name="transactionId" value={disputeForm.transactionId} onChange={(e) => { setDisputeForm({ transactionId: e.target.value }); setDisputeIdError(false); }} placeholder="Enter Transaction UUID" className={`${inputClasses} ${disputeIdError ? 'border-amber-500 ring-amber-500' : 'focus:border-amber-500 focus:ring-amber-500'}`} />
+              </div>
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                <button onClick={() => handleDisputeAction('open')} className={`${buttonBaseClasses} bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600`}>
+                  Open Dispute
+                </button>
+                <button onClick={() => handleDisputeAction('resolve')} className={`${buttonBaseClasses} bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600`}>
+                  Resolve Dispute
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* Middle Column */}
+      <div className="lg:col-span-1 flex flex-col gap-8">
+        {/* Transaction Initiator Section */}
+        <section className={`${cardBaseClasses}`}>
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-400 mb-4">🚀 Initiate New Transaction</h2>
+            <form onSubmit={handleInitiateTransaction} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="vendorId" className={labelClasses}>Vendor ID</label>
+                  <input type="text" id="vendorId" name="vendorId" value={transactionForm.vendorId} onChange={handleTransactionFormChange} placeholder="Enter Vendor ID (UUID)" required className={inputClasses} />
+                </div>
+                <div>
+                  <label htmlFor="amount" className={labelClasses}>Amount</label>
+                  <input type="number" id="amount" name="amount" value={transactionForm.amount} onChange={handleTransactionFormChange} step="0.01" required className={inputClasses} />
+                </div>
+                <div>
+                  <label htmlFor="currency" className={labelClasses}>Currency</label>
+                  <input type="text" id="currency" name="currency" value={transactionForm.currency} onChange={handleTransactionFormChange} required className={inputClasses} />
+                </div>
+                <div>
+                  <label htmlFor="channel" className={labelClasses}>Channel</label>
+                  <input type="text" id="channel" name="channel" value={transactionForm.channel} onChange={handleTransactionFormChange} required className={inputClasses} />
+                </div>
+                <div className="md:col-span-2">
+                  <label htmlFor="simulatedSuccessRate" className={labelClasses}>Simulated Success Rate (%)</label>
+                  <input type="number" id="simulatedSuccessRate" name="simulatedSuccessRate" value={transactionForm.simulatedSuccessRate} onChange={handleTransactionFormChange} min="0" max="100" required className={inputClasses} />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="initialPayloadJson" className={labelClasses}>Initial Payload (JSON String)</label>
+                <textarea id="initialPayloadJson" name="initialPayloadJson" value={transactionForm.initialPayloadJson} onChange={handleTransactionFormChange} rows="6" required className={`${inputClasses} font-mono`} ></textarea>
+              </div>
+              <button type="submit" className={`${buttonBaseClasses} bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700`}>
+                Initiate Transaction
+              </button>
+            </form>
+          </div>
+        </section>
+      </div>
+
+      {/* Right Column */}
+      <div className="lg:col-span-1 flex flex-col">
+        {/* Recent Transactions Section */}
+        <section className={`${cardBaseClasses} flex flex-col`}>
+          <div className="p-6 pb-2 flex-shrink-0">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-slate-100">📊 Recent Transactions</h2>
+              <button onClick={fetchRecentTransactions} className="px-4 py-2 bg-slate-700/50 text-slate-200 rounded-lg shadow-lg hover:bg-slate-700 transition duration-300 ease-in-out font-semibold">
+                Refresh
+              </button>
+            </div>
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4 mb-4">
+              <input type="text" placeholder="Search by ID or Vendor ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`${inputClasses} flex-1`} />
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={`${inputClasses} w-full sm:w-1/3`} >
+                <option value="ALL">All Statuses</option>
+                <option value="INITIATED">Initiated</option>
+                <option value="ESCROW">Escrow</option>
+                <option value="SETTLED">Settled</option>
+                <option value="FAILED">Failed</option>
+                <option value="DISPUTE_OPEN">Dispute Open</option>
+                <option value="DISPUTE_RESOLVED">Dispute Resolved</option>
+                <option value="WEBHOOK_FAIL">Webhook Failed</option>
+                <option value="TTL_EXPIRE">TTL Expired</option>
+              </select>
+            </div>
+          </div>
+          <div className="space-y-3 p-6 pt-2 overflow-y-auto max-h-[calc(100vh-22rem)]">
+            {loading ? (
+              <div className="text-slate-400 text-center mt-8">Loading transactions...</div>
+            ) : filteredTransactions.length > 0 ? (
+              filteredTransactions.map(tx => (
+                <div key={tx.id} className="bg-slate-900/70 p-4 rounded-xl shadow-lg border border-slate-700 hover:bg-slate-800/90 transition-colors duration-200 cursor-pointer" onClick={() => handleTransactionClick(tx)} >
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-semibold text-indigo-400 font-mono">ID: {tx.id.substring(0, 8)}...</span>
+                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColor(tx.status || 'UNKNOWN')}`}>
+                      {tx.status ? tx.status.toUpperCase() : 'UNKNOWN'}
+                    </span>
+                  </div>
+                  <p className="text-xl font-bold text-slate-100">
+                    {tx.currency} {tx.amount}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1 font-mono">{tx.vendorId.substring(0,8)}... via {tx.channel}</p>
+                </div>
+              ))
+            ) : (
+              <div className="text-slate-500 text-center mt-8">No recent transactions matching your criteria.</div>
+            )}
+          </div>
+        </section>
+      </div>
       
       {/* Transaction Details Modal */}
       {isModalOpen && selectedTransaction && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform scale-100 transition-transform duration-300 ease-in-out">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform scale-100 transition-transform duration-300 ease-in-out">
             <div className="flex justify-between items-start mb-6">
-              <h3 className="text-3xl font-bold text-gray-900">Transaction Details</h3>
-              <button onClick={closeModal} className="text-gray-500 hover:text-gray-900 text-4xl">
+              <h3 className="text-3xl font-bold text-slate-100">Transaction Details</h3>
+              <button onClick={closeModal} className="text-slate-400 hover:text-white text-4xl">
                 &times;
               </button>
             </div>
             
             <div className="space-y-4 mb-6">
-              <div className="flex justify-between items-center bg-gray-100 p-4 rounded-lg">
-                <span className="text-lg font-semibold text-gray-700">Transaction ID:</span>
-                <span className="text-lg font-mono text-gray-900">{selectedTransaction.id}</span>
+              <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-lg">
+                <span className="text-lg font-semibold text-slate-300">Transaction ID:</span>
+                <span className="text-lg font-mono text-indigo-400">{selectedTransaction.id}</span>
               </div>
-              <div className="flex justify-between items-center bg-gray-100 p-4 rounded-lg">
-                <span className="text-lg font-semibold text-gray-700">Vendor ID:</span>
-                <span className="text-lg font-mono text-gray-900">{selectedTransaction.vendorId}</span>
+              <div className="flex justify-between items-center bg-slate-900/50 p-4 rounded-lg">
+                <span className="text-lg font-semibold text-slate-300">Vendor ID:</span>
+                <span className="text-lg font-mono text-slate-100">{selectedTransaction.vendorId}</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  <span className="block text-sm font-medium text-gray-700">Amount:</span>
-                  <span className="block text-xl font-bold text-gray-900 mt-1">{selectedTransaction.currency} {selectedTransaction.amount}</span>
+                <div className="bg-slate-900/50 p-4 rounded-lg">
+                  <span className="block text-sm font-medium text-slate-300">Amount:</span>
+                  <span className="block text-xl font-bold text-slate-100 mt-1">{selectedTransaction.currency} {selectedTransaction.amount}</span>
                 </div>
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  <span className="block text-sm font-medium text-gray-700">Channel:</span>
-                  <span className="block text-xl font-bold text-gray-900 mt-1">{selectedTransaction.channel}</span>
+                <div className="bg-slate-900/50 p-4 rounded-lg">
+                  <span className="block text-sm font-medium text-slate-300">Channel:</span>
+                  <span className="block text-xl font-bold text-slate-100 mt-1">{selectedTransaction.channel}</span>
                 </div>
               </div>
             </div>
 
-            {/* Timeline */}
-            <div className="bg-white rounded-xl p-4 border border-gray-200">
-              <h4 className="text-xl font-bold text-gray-800 mb-4">Transaction Timeline</h4>
+            <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
+              <h4 className="text-xl font-bold text-slate-200 mb-4">Transaction Timeline</h4>
               {timelineStatus === null ? (
-                <div className="text-center text-gray-500 py-4">Loading timeline status...</div>
+                <div className="text-center text-slate-400 py-4">Loading timeline status...</div>
               ) : (
                 <div className="flex justify-between items-center relative">
-                  <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-200 -z-10">
-                    <div 
-                      className="h-full bg-indigo-600 transition-all duration-500 ease-out rounded-full"
-                      style={{ width: `${timelineProgress}%` }}
-                    ></div>
+                  <div className="absolute top-1/2 left-0 right-0 h-1 bg-slate-700 -z-10">
+                    <div className="h-full bg-indigo-500 transition-all duration-500 ease-out rounded-full" style={{ width: `${timelineProgress}%` }} ></div>
                   </div>
-                  
                   {['INITIATED', 'ESCROW', 'SETTLED'].map((stage, index) => (
                     <div key={stage} className="flex flex-col items-center z-10">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg transition-colors duration-300 ${getTimelineColor(timelineStatus, stage)} ${getTimelineColor(timelineStatus, stage).includes('bg-indigo') ? 'scale-110 shadow-lg' : ''}`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 ${getTimelineColor(timelineStatus, stage)} ${getTimelineColor(timelineStatus, stage).includes('bg-indigo') ? 'scale-110 shadow-lg shadow-indigo-500/30' : ''}`}>
                         {index + 1}
                       </div>
-                      <span className="text-sm mt-2 text-center sm:text-sm">{stage.replace('_', ' ')}</span>
+                      <span className="text-sm mt-2 text-center sm:text-sm text-slate-300">{stage.replace('_', ' ')}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <pre className="mt-6 p-4 bg-gray-800 text-green-300 rounded-lg text-sm overflow-x-auto font-mono">
+            <pre className="mt-6 p-4 bg-slate-900 border border-slate-700 text-emerald-300 rounded-lg text-sm overflow-x-auto font-mono">
               {JSON.stringify(selectedTransaction, null, 2)}
             </pre>
           </div>
@@ -709,11 +601,12 @@ const AdminDashboard = React.memo(({ transactions, fetchRecentTransactions, show
   );
 });
 
+export default AdminDashboard;
+
+
 // AnalyticsDashboard Component - Wrapped in React.memo for performance
-const AnalyticsDashboard = React.memo(({ transactions }) => {
-  // Memoize analytics data to prevent re-calculation on every render
+export const AnalyticsDashboard = React.memo(({ transactions }) => {
   const analyticsData = useMemo(() => {
-    // 1. Transactions by Status
     const statusCountsMap = transactions.reduce((acc, tx) => {
       const status = tx.currentStatus || 'UNKNOWN';
       acc[status] = (acc[status] || 0) + 1;
@@ -721,7 +614,6 @@ const AnalyticsDashboard = React.memo(({ transactions }) => {
     }, {});
     const statusCounts = Object.keys(statusCountsMap).map(status => ({ status, count: statusCountsMap[status] }));
 
-    // 2. Transactions by Channel
     const channelDistributionMap = transactions.reduce((acc, tx) => {
       const channel = tx.channel || 'UNKNOWN';
       acc[channel] = (acc[channel] || 0) + 1;
@@ -729,7 +621,6 @@ const AnalyticsDashboard = React.memo(({ transactions }) => {
     }, {});
     const channelDistribution = Object.keys(channelDistributionMap).map(channel => ({ channel, count: channelDistributionMap[channel] }));
 
-    // 3. Transaction Volume Over Time
     const timeSeriesMap = transactions.reduce((acc, tx) => {
       const date = moment(tx.createdAt).format('YYYY-MM-DD');
       if (!acc[date]) {
@@ -744,166 +635,73 @@ const AnalyticsDashboard = React.memo(({ transactions }) => {
   }, [transactions]);
 
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe', '#00c49f', '#ffbb28', '#ff8042'];
+  const cardBaseClasses = "bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl shadow-2xl shadow-black/20";
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Interactive Analytics</h2>
+    <div className="max-w-7xl mx-auto">
+      <h2 className="text-4xl font-bold text-slate-100 mb-8 text-center">Interactive Analytics</h2>
       {transactions.length === 0 ? (
-        <div className="text-gray-400 text-center py-16">No transactions available to generate analytics.</div>
+        <div className="text-slate-400 text-center py-16">No transactions available to generate analytics.</div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Transactions by Status Bar Chart */}
-          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Transactions by Status</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={analyticsData.statusCounts} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="status" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="count" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className={cardBaseClasses}>
+            <div className="p-6">
+              <h3 className="text-xl font-semibold text-slate-100 mb-4">Transactions by Status</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={analyticsData.statusCounts} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                  <XAxis dataKey="status" tick={{ fill: '#9ca3af' }} />
+                  <YAxis tick={{ fill: '#9ca3af' }} />
+                  <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#cbd5e1' }} cursor={{ fill: 'rgba(100, 116, 139, 0.1)' }} />
+                  <Legend wrapperStyle={{ color: '#e2e8f0' }} />
+                  <Bar dataKey="count" fill="url(#colorUv)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          {/* Transactions by Channel Pie Chart */}
-          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 flex flex-col items-center">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Transactions by Channel</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={analyticsData.channelDistribution}
-                  dataKey="count"
-                  nameKey="channel"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  fill="#8884d8"
-                  label
-                >
-                  {analyticsData.channelDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className={cardBaseClasses}>
+            <div className="p-6 flex flex-col items-center">
+              <h3 className="text-xl font-semibold text-slate-100 mb-4">Transactions by Channel</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={analyticsData.channelDistribution} dataKey="count" nameKey="channel" cx="50%" cy="50%" outerRadius={120} fill="#8884d8" labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => { const RADIAN = Math.PI / 180; const radius = innerRadius + (outerRadius - innerRadius) * 0.5; const x = cx + radius * Math.cos(-midAngle * RADIAN); const y = cy + radius * Math.sin(-midAngle * RADIAN); return (<text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={14}>{`${(percent * 100).toFixed(0)}%`}</text>);}} >
+                    {analyticsData.channelDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#cbd5e1' }} />
+                  <Legend wrapperStyle={{ color: '#e2e8f0' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          {/* Transaction Volume Over Time Line Chart */}
-          <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 lg:col-span-2">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Transaction Volume Over Time</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={analyticsData.timeSeries} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="timestamp" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="volume" stroke="#82ca9d" activeDot={{ r: 8 }} />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className={`${cardBaseClasses} lg:col-span-2`}>
+            <div className="p-6">
+              <h3 className="text-xl font-semibold text-slate-100 mb-4">Transaction Volume Over Time</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={analyticsData.timeSeries} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                  <XAxis dataKey="timestamp" tick={{ fill: '#9ca3af' }} />
+                  <YAxis tick={{ fill: '#9ca3af' }} />
+                  <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#cbd5e1' }} cursor={{ fill: 'rgba(100, 116, 139, 0.1)' }} />
+                  <Legend wrapperStyle={{ color: '#e2e8f0' }} />
+                  <Line type="monotone" dataKey="volume" stroke="#82ca9d" strokeWidth={2} activeDot={{ r: 8 }} dot={{ stroke: '#82ca9d', strokeWidth: 1, r: 4, fill: '#82ca9d' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       )}
+      <svg width="0" height="0">
+        <defs>
+          <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
+            <stop offset="95%" stopColor="#8884d8" stopOpacity={0.2}/>
+          </linearGradient>
+        </defs>
+      </svg>
     </div>
   );
 });
-
-// Main App component that handles routing and layout
-export default function App() {
-  const [currentPage, setCurrentPage] = useState('dashboard');
-  const [transactions, setTransactions] = useState([]);
-  const [message, setMessage] = useState('');
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  // Function to display messages to the user, wrapped in useCallback
-  const showMessage = useCallback((msg, success) => {
-    setMessage(msg);
-    setIsSuccess(success);
-    setTimeout(() => {
-      setMessage('');
-    }, 5000);
-  }, []);
-  
-  // Function to fetch recent transactions from the API, wrapped in useCallback
-  const fetchRecentTransactions = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('http://localhost:8080/api/transactions', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        const sortedTransactions = Array.isArray(result) ? result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : [];
-        setTransactions(sortedTransactions);
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch transactions.');
-      }
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-      showMessage(`Error fetching transactions: ${error.message}`, false);
-    } finally {
-      setLoading(false);
-    }
-  }, [showMessage]);
-
-  // Effect to re-fetch transactions on initial load
-  useEffect(() => {
-    fetchRecentTransactions();
-  }, [fetchRecentTransactions]);
-
-  return (
-    <div className="bg-gray-100 font-sans text-gray-800 p-8 min-h-screen">
-      {/* Navigation Bar */}
-      <nav className="bg-white shadow-lg rounded-full p-4 mb-8 max-w-2xl mx-auto">
-        <ul className="flex justify-center space-x-8">
-          <li>
-            <button 
-              onClick={() => setCurrentPage('dashboard')} 
-              className={`font-semibold text-lg py-2 px-4 rounded-full transition-colors duration-200 ${currentPage === 'dashboard' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              Dashboard
-            </button>
-          </li>
-          <li>
-            <button 
-              onClick={() => setCurrentPage('analytics')} 
-              className={`font-semibold text-lg py-2 px-4 rounded-full transition-colors duration-200 ${currentPage === 'analytics' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              Analytics
-            </button>
-          </li>
-        </ul>
-      </nav>
-
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-8 text-center">TrackTrove Admin Console</h1>
-        {message && (
-          <div className={`p-4 mb-6 rounded-lg font-medium text-lg max-w-4xl mx-auto ${isSuccess ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-            {message}
-          </div>
-        )}
-        
-        {currentPage === 'dashboard' ? (
-          <AdminDashboard 
-            transactions={transactions}
-            fetchRecentTransactions={fetchRecentTransactions}
-            showMessage={showMessage}
-            loading={loading}
-          />
-        ) : (
-          <AnalyticsDashboard transactions={transactions} />
-        )}
-      </div>
-    </div>
-  );
-}
